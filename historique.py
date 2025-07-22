@@ -1,39 +1,32 @@
-import json
+import psycopg2
 import os
+from dotenv import load_dotenv
 
-messages_traite = set()
+# Chargement des variables d'environnement
+load_dotenv()
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-def sauvegarder_messages_traite():
-    """Save processed messages to JSON file"""
-    with open("messages_traite.json", "w") as f:
-        json.dump(list(messages_traite), f)
+def deja_traite(channel_id, message_id):
+    """Vérifie si un message a déjà été traité"""
+    conn = psycopg2.connect(DATABASE_URL)
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT 1 FROM processed_messages WHERE channel_id = %s AND message_id = %s",
+        (channel_id, message_id),
+    )
+    result = cur.fetchone()
+    cur.close()
+    conn.close()
+    return result is not None
 
-def charger_messages_traite():
-    """Load processed messages from JSON file if it exists"""
-    global messages_traite
-    if os.path.exists("messages_traite.json"):
-        with open("messages_traite.json", "r") as f:
-            try:
-                data = json.load(f)
-                messages_traite = set(data)
-            except json.JSONDecodeError:
-                messages_traite = set()
-
-def add_message_traite(numero):
-    """Add a message number to processed messages"""
-    messages_traite.add(numero)
-    sauvegarder_messages_traite()
-
-def is_message_traite(numero):
-    """Check if a message number has been processed"""
-    return numero in messages_traite
-
-def get_messages_count():
-    """Get count of processed messages"""
-    return len(messages_traite)
-
-def reset_messages_traite():
-    """Reset processed messages"""
-    global messages_traite
-    messages_traite.clear()
-    sauvegarder_messages_traite()
+def enregistrer_message(channel_id, message_id):
+    """Enregistre un message comme traité"""
+    conn = psycopg2.connect(DATABASE_URL)
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO processed_messages (channel_id, message_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+        (channel_id, message_id),
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
