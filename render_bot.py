@@ -1,40 +1,48 @@
-#!/usr/bin/env python3
-"""
-Main file to launch the Telegram bot on Render.com or locally using .env
-"""
 import os
+import threading
 import logging
 from telebot import TeleBot
-from keep_alive import keep_alive
 from dotenv import load_dotenv
+from flask import Flask
 
-# Chargement des variables d’environnement à partir d’un fichier .env
+# Chargement des variables d’environnement
 load_dotenv()
 
-# Initialisation du logger
+# Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Récupération du token
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 if not TOKEN:
-    logger.error("TELEGRAM_BOT_TOKEN is not set! (from environment or .env)")
+    logger.error("TELEGRAM_BOT_TOKEN is not set!")
     exit(1)
 
 # Création du bot
 bot = TeleBot(TOKEN)
 
-# Lancement de la surveillance keep_alive
-keep_alive.start_monitor()
-
-# Commande /start de test
+# Commande /start
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.reply_to(message, "🤖 Bot en ligne et opérationnel!")
+    bot.reply_to(message, "✅ Bot en ligne et opérationnel !")
 
-# Boucle principale
-try:
+# Fonction de démarrage du bot
+def start_bot():
     logger.info("✅ Bot démarré...")
     bot.infinity_polling()
-except Exception as e:
-    logger.exception("❌ Erreur dans le bot : %s", e)
+
+# Serveur Flask pour que Render garde le service actif
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "🤖 Bot en ligne (Flask) !"
+
+def run_flask():
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
+
+# Exécution des deux en parallèle
+if __name__ == "__main__":
+    threading.Thread(target=run_flask).start()
+    start_bot()
