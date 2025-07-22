@@ -304,4 +304,22 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# === Ajout pour Render : maintenir le port ouvert ===
+from flask import Flask
+import threading
+
+flask_app = Flask(__name__)
+
+@flask_app.route("/")
+def index():
+    return "Bot is alive", 200
+
+def run_flask():
+    port = int(os.environ.get("PORT", 5000))  # <-- Port pour Render
+    flask_app.run(host="0.0.0.0", port=port)
+
+# Lancer le serveur Flask dans un thread
+threading.Thread(target=run_flask).start()
     
